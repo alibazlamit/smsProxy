@@ -52,7 +52,7 @@ func (b *simpleBatchingClient) send(message SendMessage, ID MessageID) error {
 		b.lock.Lock()
 		messages := make([]fastsmsing.Message, len(b.messagesToSend))
 		copy(messages, b.messagesToSend)
-		// b.messagesToSend = make([]fastsmsing.Message, 0)
+		b.messagesToSend = make([]fastsmsing.Message, 0)
 		b.lock.Unlock()
 
 		go func(messagesToSend []fastsmsing.Message) {
