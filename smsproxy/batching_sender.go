@@ -2,6 +2,7 @@ package smsproxy
 
 import (
 	"sync"
+	"time"
 
 	"gitlab.com/devskiller-tasks/messaging-app-golang/fastsmsing"
 )
@@ -46,25 +47,26 @@ func (b *simpleBatchingClient) send(message SendMessage, ID MessageID) error {
 		Message:     message.Message,
 		PhoneNumber: message.PhoneNumber,
 	})
-	b.lock.Unlock()
 
 	if len(b.messagesToSend) >= b.config.minimumInBatch {
-		b.lock.Lock()
-		messages := make([]fastsmsing.Message, len(b.messagesToSend))
-		copy(messages, b.messagesToSend)
+		routeineMessages := make([]fastsmsing.Message, len(b.messagesToSend))
+		copy(routeineMessages, b.messagesToSend)
 		b.messagesToSend = make([]fastsmsing.Message, 0)
 		b.lock.Unlock()
 
 		go func(messagesToSend []fastsmsing.Message) {
 			for attempt := 1; attempt <= calculateMaxAttempts(b.config.maxAttempts); attempt++ {
 				err := b.client.Send(messagesToSend)
+				time.Sleep(3 * time.Second)
 				if lastAttemptFailed(attempt, b.config.maxAttempts, err) {
 					go sendStatistics(messagesToSend, err, attempt, b.config.maxAttempts, b.statistics)
 					return
 				}
 			}
 			go sendStatistics(messagesToSend, nil, b.config.maxAttempts, b.config.maxAttempts, b.statistics)
-		}(messages)
+		}(routeineMessages)
+	} else {
+		b.lock.Unlock()
 	}
 
 	return nil
